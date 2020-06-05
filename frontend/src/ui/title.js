@@ -1,111 +1,127 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useHistory } from 'react-router-dom';
 import '../App.css';
+import {findGame, newGame} from './game';
 
 function Title(props) {
-    return (
+  return (
     <div className="small-text lobby-view">
-        <p>
-            Play Codenames online! Simply select a style and a game code,
-            then send the code to your friends. In Codenames, each team
-            tries to guess all their words before the other team. Read the
-            full rules here. (TODO: link to rules)
+      <p>
+        Play Codenames online! Simply select a style and a game code,
+        then send the code to your friends. In Codenames, each team
+        tries to guess all their words before the other team. Read the
+        full rules here. (TODO: link to rules)
         </p>
-        <Link to="create">
+      <Link to="create">
         <button className="game-button" style={{ background: "lightblue" }}>
-            Create a New Game
+          Create a New Game
         </button>
-        </Link>
-        <Link to="join">
+      </Link>
+      <Link to="join">
         <button className="game-button" style={{ background: "lightgreen" }}>
-            Join an Existing Game
+          Join an Existing Game
         </button>
-        </Link>
+      </Link>
     </div>
-    );
+  );
 }
 
 function Join(props) {
-    return (
-        <div className="small-text lobby-view">
-        <table>
-        <tbody>
-        <tr>
-          <td>Find a game by code: </td>
-          <td>
-            <input className="join-code" type="text" name="joinCode"
-              value={props.joinCode} onChange={(e) => props.setJoinCode(e.target.value)}
-            />
-            <button className="game-button" style={{background:"lightgreen"}}
-                //TODO: onClick={}
-            >
-                Find Game
-            </button>
-          </td>
-        </tr>
-      </tbody>
-      </table>
-      <Link to="lobby">
-          <button className="game-button"
-              style={{ background: "lightblue" }}
-          >
-              Join Game
-          </button>
-      </Link>
-      </div>
-    );
-}
+  const history = useHistory();
+  const [errorMessage, setErrorMessage] = useState(null)
 
-function Create(props) {
   return (
     <div className="small-text lobby-view">
       <table>
-      <tbody>
-      <tr>
-        <td>
-          What style of game do you want to play?
+        <tbody>
+          <tr>
+            <td>Find a game by code: </td>
+            <td>
+              <input className="join-code" type="text" name="gameID"
+                value={props.gameID} onChange={(e) => props.setGameID(e.target.value)}
+              />
+              {/* TODO: change to a succ / fail check with server */}
+              <button className="game-button"
+                style={{ background: "lightgreen" }}
+                //TODO: set up some validation
+                onClick={(e) => {
+                  findGame(props.gameID,
+                    (msg) => {
+                      if (msg === "success")
+                        history.push("/lobby")
+                      else
+                        setErrorMessage(msg)
+                    })
+                }}
+              >
+                Join Game
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      {errorMessage}
+    </div>
+  );
+}
+
+function Create(props) {
+  const history = useHistory();
+  const [errorMessage, setErrorMessage] = useState(null)
+
+  return (
+    <div className="small-text lobby-view">
+      <table>
+        <tbody>
+          <tr>
+            <td>
+              What style of game do you want to play?
         </td>
-        <td>
-          <button className="game-button"
-            style={props.gameMode === "regular" ? { background: "lightcoral" } : {}}
-            onClick={(e) => props.setGameMode("regular")}
-          >
-          Regular
+            <td>
+              <button className="game-button"
+                style={props.gameMode === "regular" ? { background: "lightcoral" } : {}}
+                onClick={(e) => props.setGameMode("regular")}
+              >
+                Regular
           </button>
-          <button className="game-button"
-            style={props.gameMode === "duet" ? { background: "lightgreen" } : {}}
-            onClick={(e) => props.setGameMode("duet")}
-          >
-          Duet
+              <button className="game-button"
+                style={props.gameMode === "duet" ? { background: "lightgreen" } : {}}
+                onClick={(e) => props.setGameMode("duet")}
+              >
+                Duet
           </button>
-        </td>
-      </tr>
-      <tr>
-        <td>Set a code to join your game: </td>
-        <td>
-          <input className="join-code" type="text" name="joinCode"
-            value={props.joinCode} onChange={(e) => props.setJoinCode(e.target.value)}
-          />
-          </td>
-        </tr>
-    </tbody>
-    </table>
-    <Link to="lobby">
-        <button className="game-button"
-            style={{ background: "lightblue" }}
-            // TODO: add error checking. What if game creation fails?
-            onClick={(e) => {
-                var gameMode = props.gameMode;
-                var joinCode = props.joinCode;
-                props.createGame({ gameMode, joinCode }, props.callback);
-            }}
-        >
-            Create Game
-        </button>
-    </Link>
+            </td>
+          </tr>
+          <tr>
+            <td>Set a code to join your game: </td>
+            <td>
+              <input className="join-code" type="text" name="gameID"
+                value={props.gameID} onChange={(e) => props.setGameID(e.target.value)}
+              />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <button className="game-button"
+        style={{ background: "lightblue" }}
+        // TODO: add error checking. What if game creation fails?
+        onClick={(e) => {
+          newGame(props.gameID, props.gameMode, props.wordSet,
+            (message) => {
+              if (message === "success")
+                history.push("/lobby");
+              else
+                setErrorMessage(message);
+            });
+        }}
+      >
+        Create Game
+      </button>
+      {errorMessage}
     </div>
   );
 }
 
 export default Title;
-export {Create, Join};
+export { Create, Join };

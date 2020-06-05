@@ -1,74 +1,82 @@
-import React, { useState } from 'react';
+import React from 'react';
 import '../App.css';
 import Board from './board';
-import {GameHeader as RegHeader} from './regular';
-import {GameHeader as DuetHeader} from './duet';
-import {server} from '../App';
+import {DuetGameHeader, RegularGameHeader} from './gameheader.js'
 
-function createGuesser(team_name, updateFunction) {
-  const team = team_name;
+const socket = new WebSocket("ws://localhost:9090/game")
 
-  return function(word) {
-    // send api call to tell everyone we guessed
-    var req = new XMLHttpRequest();
-    req.onreadystatechange = function() {
-      updateFunction(this.responseText);
-    }
-    req.open("PUT", server, true);
-    req.send({word, team});
+function newGame(gameID, mode, wordSet, callback) {
+  console.log("Creating game:", gameID);
+  socket.send(JSON.stringify({"type":"new", gameID, mode, wordSet}))
+  socket.onmessage = (message) => { 
+    // expect a string: success or error message
+    callback(message.data);
   };
 }
 
-function createTurnHandler(team_name, updateFunction) {
-  const team = team_name;
-  return function(team_name) {
-    if (team !== team_name) return;
-    // send api call to tell everyone we guessed
-    var req = new XMLHttpRequest();
-    req.onreadystatechange = function() {
-      updateFunction(this.responseText);
-    }
-    req.open("PUT", server, true)
-    req.send(team_name);
-  }
+function findGame(gameID, callback) {
+  console.log("Finding game:", gameID);
+  var json = JSON.stringify({"type":"find", gameID})
+  console.log(json)
+  socket.send(json)
+  socket.onmessage = (message) => { 
+    // expect a string: success or error message
+    callback(message.data);
+  };
+}
+
+function startGame(gameID, callback) {
+  console.log("Subscribing to game:", gameID);
+  socket.send(JSON.stringify({"type":"start", gameID}));
+  socket.onmessage = (message) => { 
+    console.log("Recieved Message")
+    console.log(message.data); 
+    // console.log(typeof message.data);
+    var game = JSON.parse(message.data);
+    // console.log(game);
+    callback(game);
+  };
+}
+
+function guess(gameID, index, team) {
+  console.log('Guessing:', index);
+  socket.send(JSON.stringify({"type":"guess", gameID, index, team}));
+}
+
+function endTurn(gameID, round, team) {
+  console.log('Ending Turn');
+  socket.send(JSON.stringify({"type":"end turn", gameID, round, team}));
 }
 
 function Game(props) {
-  const [turn, setTurn] = useState("blue");
-  const [redRemain, setRedRemain] = useState(9); // TODO: change to props.redRemain
-  const [blueRemain, setBlueRemain] = useState(8); // TODO: change to props.blueRemain
-  const turn_handler = createTurnHandler(turn, setTurn); // TODO: change to props.team
-  const guess = createGuesser(turn); // TODO: change to props.team
 
-  var gameHeader;
-  if (props.gameMode === "regular") {
-    gameHeader = 
-      <RegHeader
-        turn={turn} 
-        team={props.team}
-        teams={["blue", "red"]}
-        teamRemain={[redRemain, blueRemain]}
-        endTurn={turn_handler}
-      />
-  }
-  else {
-    gameHeader = 
-      <DuetHeader
-        team={turn} 
-        teams={["blue", "red"]}
-        endTurn={turn_handler}
-      />
-  }
+  // in theory, this component shouldn't reload, so this should only happen once
+  // subscribeToGame(props.gameID, props.loadGame);
+
+  const GameHeader = (props.gameMode === "regular") ? RegularGameHeader : DuetGameHeader;  
+
   return (
     <div className="game-view">
-      {gameHeader}
+      <GameHeader        
+        round={props.round}
+        team={props.team}
+        turn={props.turn}
+        revealed={props.revealed}
+        layout={props.layout}
+        endTurn={() => endTurn(props.gameID, props.round, props.team)}
+      />
       <p/>
       <Board 
+        enabled={props.turn === props.team}
         words={props.words}
+        layout={props.layout}
+        revealed={props.revealed}
         role={props.role}
+        guess={(index) => guess(props.gameID, index, props.team)}
       />
     </div>
   );
 }
 
 export default Game;
+export { newGame, findGame, startGame }

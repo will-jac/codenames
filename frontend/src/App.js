@@ -3,7 +3,6 @@ import {
   BrowserRouter as Router,
   Switch,
   Route,
-  Link
 } from 'react-router-dom';
 
 import './App.css';
@@ -12,83 +11,97 @@ import Lobby from './ui/lobby';
 import Game from './ui/game';
 
 import * as word_data from './words.json';
-const words = word_data.default;
-const server = "localhost:9090";
+const wordData = word_data.default;
 
-const fetch = require("node-fetch");
-
-function createGame(gameState, callback) {
-  // send api call to the server to create the game
-  console.log("calling server to create game");
-
-  fetch(server + "/create-game", {
-    method : "POST",
-    body : JSON.stringify(gameState)
-  })
-  .then(response => callback(response.text()))
-  .then(response => console.log(response.text()))
-  .catch((error) => {
-    console.error('Error:', error);
-  });
-
-}
+const wordsPerGame = 25;
 
 function App() {
-  const [wordList, setWordList] = useState("English (Original)");
+  const [wordSetName] = useState("English (Original)");
+
+  // these represent the game and it's current state
+  // they're sent to the server
   const [gameMode, setGameMode] = useState("regular");
-  const [joinCode, setJoinCode] = useState(
-    words[wordList][Math.floor(Math.random() * words[wordList].length)] +
-    words[wordList][Math.floor(Math.random() * words[wordList].length)]
+  // GameState
+  const [permIndex, setPermIndex] = useState(0);
+  const [round, setRound] = useState(0);
+  const [revealed, setRevealed] = useState([]);
+  const [wordSet, setWordSet] = useState(wordData[wordSetName]);
+  // gameID initially two random words from the dataset
+  const [gameID, setGameID] = useState(
+    wordSet[Math.floor(Math.random() * wordSet.length)] +
+    wordSet[Math.floor(Math.random() * wordSet.length)]
   );
-  const [wordGrid, setWordGrid] = useState(words[wordList].slice(25, 50))
-  
+  // Words used in game
+  const [words, setWords] = useState(wordSet.slice(permIndex, permIndex+wordsPerGame));
+  const [layout, setLayout] = useState([]); // Layout of the words
+  // const [startingTeam, setStartingTeam] = useState(""); // Which team is starting?
+
+  // who's turn is it?
+  const [turn, setTurn] = useState("")
+
+  // player-specific -- currently not sent to server
   const [team, setTeam] = useState("blue");
   const [role, setRole] = useState("player"); // used for regular, not for duet
+
+  function loadGame(game) {
+    console.log("loading game...")
+    setPermIndex(game["permIndex"]); // needed?
+    setRound(game["round"]);
+    setRevealed(game["revealed"]);
+    setWordSet(game["wordSet"]); // needed?
+    setGameID(game["gameID"]);
+    setWords(game["words"]);
+    setLayout(game["layout"]);
+    setGameMode(game["mode"]);
+    // setStartingTeam(game["startingTeam"]);
+    setTurn(game["turn"]);
+  }
 
   return (
     <div className="App">
       <header className="App-header">
         <h1>CODENAMES</h1>
-        <button onClick={(e) => console.log(role)}>Log Role</button>
         <Router>
           <Switch>
             <Route path="/play">
               <Game
-                words={wordGrid}
                 gameMode={gameMode}
-                joinCode={joinCode}
+                words={words}
+                layout={layout}
+                revealed={revealed}
+                round={round}
+                gameID={gameID}
                 team={team}
                 role={role}
+                turn={turn}
+                loadGame={loadGame}
               />
             </Route>
             <Route path="/lobby">
               <Lobby
-                words={wordGrid}
                 gameMode={gameMode}
-                joinCode={joinCode}
+                gameID={gameID}
                 team={team}
                 setTeam={setTeam}
                 role={role}
                 setRole={setRole}
+                loadGame={loadGame}
               />
             </Route>
             <Route path="/join">
               <Join
                 setGameMode={setGameMode}
-                joinCode={joinCode}
-                setJoinCode={setJoinCode}
-                callback={setWordGrid}
+                gameID={gameID}
+                setGameID={setGameID}
               />
             </Route>
             <Route path="/create">
               <Create
-                words={words[wordList]}
+                wordSet={wordSet}
                 gameMode={gameMode}
                 setGameMode={setGameMode}
-                joinCode={joinCode}
-                setJoinCode={setJoinCode}
-                createGame={createGame}
-                callback={setWordGrid}
+                gameID={gameID}
+                setGameID={setGameID}
               />
             </Route>
             <Route path="/">
@@ -103,4 +116,3 @@ function App() {
 }
 
 export default App;
-export { server };
