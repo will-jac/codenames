@@ -3,6 +3,7 @@ import {
   BrowserRouter as Router,
   Switch,
   Route,
+  Link,
 } from 'react-router-dom';
 
 import './App.css';
@@ -20,19 +21,19 @@ function App() {
 
   // these represent the game and it's current state
   // they're sent to the server
-  const [gameMode, setGameMode] = useState("regular");
+  const [mode, setMode] = useState("regular");
   // GameState
-  const [permIndex, setPermIndex] = useState(0);
+  // const [permIndex, setPermIndex] = useState(0);
   const [round, setRound] = useState(0);
   const [revealed, setRevealed] = useState([]);
-  const [wordSet, setWordSet] = useState(wordData[wordSetName]);
+  const [wordSet] = useState(wordData[wordSetName]);
   // gameID initially two random words from the dataset
   const [gameID, setGameID] = useState(
     wordSet[Math.floor(Math.random() * wordSet.length)] +
     wordSet[Math.floor(Math.random() * wordSet.length)]
   );
   // Words used in game
-  const [words, setWords] = useState(wordSet.slice(permIndex, permIndex+wordsPerGame));
+  const [words, setWords] = useState(null);
   const [layout, setLayout] = useState([]); // Layout of the words
   // const [startingTeam, setStartingTeam] = useState(""); // Which team is starting?
 
@@ -45,14 +46,14 @@ function App() {
 
   function loadGame(game) {
     console.log("loading game...")
-    setPermIndex(game["permIndex"]); // needed?
+    // setPermIndex(game["permIndex"]); // needed?
     setRound(game["round"]);
     setRevealed(game["revealed"]);
-    setWordSet(game["wordSet"]); // needed?
+    // setWordSet(game["wordSet"]); // needed?
     setGameID(game["gameID"]);
     setWords(game["words"]);
     setLayout(game["layout"]);
-    setGameMode(game["mode"]);
+    setMode(game["mode"]);
     // setStartingTeam(game["startingTeam"]);
     setTurn(game["turn"]);
   }
@@ -60,12 +61,14 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>CODENAMES</h1>
         <Router>
+          <Link to="/">
+              <button className="app-title">CODENAMES</button>
+          </Link>
           <Switch>
             <Route path="/play">
               <Game
-                gameMode={gameMode}
+                mode={mode}
                 words={words}
                 layout={layout}
                 revealed={revealed}
@@ -73,13 +76,14 @@ function App() {
                 gameID={gameID}
                 team={team}
                 role={role}
+                setRole={setRole}
                 turn={turn}
                 loadGame={loadGame}
               />
             </Route>
             <Route path="/lobby">
               <Lobby
-                gameMode={gameMode}
+                gameMode={mode}
                 gameID={gameID}
                 team={team}
                 setTeam={setTeam}
@@ -90,7 +94,7 @@ function App() {
             </Route>
             <Route path="/join">
               <Join
-                setGameMode={setGameMode}
+                setGameMode={setMode}
                 gameID={gameID}
                 setGameID={setGameID}
               />
@@ -98,8 +102,8 @@ function App() {
             <Route path="/create">
               <Create
                 wordSet={wordSet}
-                gameMode={gameMode}
-                setGameMode={setGameMode}
+                gameMode={mode}
+                setGameMode={setMode}
                 gameID={gameID}
                 setGameID={setGameID}
               />

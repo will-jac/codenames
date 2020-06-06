@@ -1,14 +1,16 @@
 import React from 'react';
 import '../App.css';
 
-function determineRemaining(layout, revealed) {
+function determineRemaining(layout, revealed, teamIndex) {
   // figure out the number of words that remain per team
   var red = 0, blue = 0;
+  
+  if (layout == null) return {"blue":10, "red":10};
 
   for (var i = 0; i < layout.length; ++i) {
-    if (!revealed[i]) {
-      if (layout[i] === "red") ++red 
-      else if (layout[i] === "blue") ++blue
+    if (!revealed[i][teamIndex]) {
+      if (layout[i][teamIndex] === "red") ++red 
+      else if (layout[i][teamIndex] === "blue") ++blue
     }
   }
 
@@ -20,7 +22,7 @@ function capitalizeFirstLetter(string) {
 }
 
 function RegularGameHeader(props) {
-  const remain = determineRemaining(props.layout, props.revealed);
+  const remain = determineRemaining(props.layout, props.revealed, props.teamIndex);
 
   return (
     <div className="game-header">
@@ -46,14 +48,23 @@ function RegularGameHeader(props) {
 }
 
 function DuetGameHeader(props) {
-  const remain = determineRemaining(props.startingTeam, props.layout, props.revealed);
+  const keyButton = (props.role === "player") ?  
+    <button className={"end-turn"}
+      onClick={() => {props.setRole("codemaster"); console.log("codemaster")}}
+    >
+      Show Key
+    </button>
+  : 
+    <button className={"end-turn"}
+      onClick={() => {props.setRole("player"); console.log("player")}}
+    >
+      Show Key
+    </button>
 
   return (
     <div className="game-header">
-      <div>
-        Remaining: <span className="blue">{remain.blue}</span>
-          -
-          <span className="red">{remain.red}</span>
+      <div className={props.turn}>
+        {keyButton}
       </div>
       <div className={props.turn}>{capitalizeFirstLetter(props.turn)} Team's Turn!</div>
       <div className={props.turn}>

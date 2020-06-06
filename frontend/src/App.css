@@ -17,6 +17,16 @@
   color: #61dafb;
 }
 
+.app-title {
+  min-height: 80px;
+  min-width: 200px;
+  font-size : 50px;
+  font-weight: 600;
+  border: none;
+  color: white;
+  background-color: transparent;
+}
+
 .red {
   color : #d13030;
   --team :  #d13030;
@@ -35,6 +45,21 @@
 .black {
   color : #404040;
   --team :  #404040;
+}
+
+.green {
+  color : mediumseagreen;
+  --team :  mediumseagreen;
+}
+
+.neutral-linear-gradient {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--team),
+    var(--team) 10px,
+    lightyellow 10px,
+    lightyellow 20px
+  );
 }
 
 .hidden {

@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"sort"
 	"sync"
 
@@ -71,9 +72,17 @@ func (gh *GameHandle) update(fn func(*Game) bool) {
 	// fmt.Println("Lock Acquired (GameHandle.update)")
 	fmt.Println("Game was updated - notifying")
 	go func(gh *GameHandle) {
+		i := 0
 		for _, conn := range gh.connections {
-			socketWriteGame(conn, gh)
+			if socketWriteGame(conn, gh) {
+				// return true = still open, so copy over
+				gh.connections[i] = conn
+				i++
+			}
+			// return false = closed, don't copy over (aka remove)
 		}
+		// clean up - could do this more effeciently
+		gh.connections = gh.connections[0:i]
 	}(gh)
 	// s.mu.Unlock()
 	// fmt.Println("Releasing lock")
@@ -116,8 +125,7 @@ func (gh *GameHandle) MarshalJSON() ([]byte, error) {
 	if gh.marshaled == nil {
 		gh.marshaled, err = json.Marshal(struct {
 			*Game
-			StateID string `json:"state_id"`
-		}{gh.g, gh.g.StateID()})
+		}{gh.g})
 	}
 	return gh.marshaled, err
 }
@@ -141,6 +149,8 @@ type Server struct {
 
 // Start the server
 func (s *Server) Start(games map[string]*Game) error {
+
+	defer fmt.Println("Started Server")
 
 	s.games = make(map[string]*GameHandle)
 	if games != nil {
@@ -177,7 +187,7 @@ func (s *Server) messageHandler(conn *websocket.Conn) {
 			GameID  string    `json:"gameID"`
 			Index   *int      `json:"index,omitempty"`
 			Round   *int      `json:"round,omitempty"`
-			Team    *Team     `json:"team,omitempty"`
+			Team    *string   `json:"team,omitempty"`
 			Mode    *GameMode `json:"mode,omitempty"`
 			WordSet *[]string `json:"wordSet,omitempty"`
 		}
@@ -281,7 +291,7 @@ func (s *Server) handleStart(conn *websocket.Conn, gameID string) {
 	fmt.Println("Unlocking GH")
 }
 
-func (s *Server) handleGuess(conn *websocket.Conn, gameID string, indexP *int, teamP *Team) {
+func (s *Server) handleGuess(conn *websocket.Conn, gameID string, indexP *int, teamP *string) {
 	gh, ok := s.games[gameID]
 	if !ok {
 		conn.WriteMessage(websocket.TextMessage, []byte("Game does not exist!"))
@@ -310,7 +320,7 @@ func (s *Server) handleGuess(conn *websocket.Conn, gameID string, indexP *int, t
 	}
 }
 
-func (s *Server) handleEndTurn(conn *websocket.Conn, gameID string, roundP *int, teamP *Team) {
+func (s *Server) handleEndTurn(conn *websocket.Conn, gameID string, roundP *int, teamP *string) {
 	gh, ok := s.games[gameID]
 	if !ok {
 		conn.WriteMessage(websocket.TextMessage, []byte("Game does not exist!"))
@@ -330,12 +340,22 @@ func (s *Server) handleEndTurn(conn *websocket.Conn, gameID string, roundP *int,
 	})
 }
 
-func socketWriteGame(conn *websocket.Conn, gh *GameHandle) {
+func socketWriteGame(conn *websocket.Conn, gh *GameHandle) bool {
 	fmt.Printf("Writing game %s to connection %s\n", gh.g.ID, conn.RemoteAddr())
+	a, er := json.Marshal(*gh.g)
+	if er != nil {
+		fmt.Println("error:", er)
+	}
+	os.Stdout.Write(a)
 	err := conn.WriteJSON(gh)
 	if err != nil {
 		fmt.Println("Error:", err)
+		// probably a socket close
+		conn.WriteMessage(websocket.TextMessage, []byte("Error: closing connection. Please reload"))
+		conn.Close()
+		return false
 	}
+	return true
 }
 
 // Create a Random Game State
@@ -343,8 +363,6 @@ func randomState(words []string) GameState {
 	return GameState{
 		Seed:      rand.Int63(),
 		PermIndex: 0,
-		Round:     0,
-		Revealed:  make([]bool, wordsPerGame),
 		WordSet:   words,
 	}
 }
@@ -356,8 +374,8 @@ func nextGameState(state GameState) GameState {
 		state.Seed = rand.Int63()
 		state.PermIndex = 0
 	}
-	state.Revealed = make([]bool, wordsPerGame)
-	state.Round = 0
+	// state.Revealed = make([]bool, wordsPerGame)
+	// state.Round = 0
 	return state
 }
 
