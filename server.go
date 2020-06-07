@@ -6,7 +6,6 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	"os"
 	"sort"
 	"sync"
 
@@ -58,7 +57,7 @@ func newHandle(g *Game, s Store) *GameHandle {
 func (gh *GameHandle) update(fn func(*Game) bool) {
 	gh.mu.Lock()
 	defer gh.mu.Unlock()
-	fmt.Println("Calling fn")
+	// fmt.Println("Calling fn")
 	ok := fn(gh.g)
 	if !ok {
 		// game wasn't updated
@@ -70,7 +69,7 @@ func (gh *GameHandle) update(fn func(*Game) bool) {
 	// fmt.Println("Acquiring lock (GameHandle.update)")
 	// s.mu.Lock()
 	// fmt.Println("Lock Acquired (GameHandle.update)")
-	fmt.Println("Game was updated - notifying")
+	// fmt.Println("Game was updated - notifying")
 	go func(gh *GameHandle) {
 		i := 0
 		for _, conn := range gh.connections {
@@ -86,7 +85,7 @@ func (gh *GameHandle) update(fn func(*Game) bool) {
 	}(gh)
 	// s.mu.Unlock()
 	// fmt.Println("Releasing lock")
-	fmt.Println("Done sending game to subscribers")
+	// fmt.Println("Done sending game to subscribers")
 
 	gh.marshaled = nil
 	ch := gh.updated
@@ -168,7 +167,7 @@ func (s *Server) Start(games map[string]*Game) error {
 
 // start a game and whatnot
 func (s *Server) initializeSocket(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Recieved Request: /game")
+	// fmt.Println("Recieved Request: /game")
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		fmt.Print("upgrade:", err)
@@ -195,10 +194,10 @@ func (s *Server) messageHandler(conn *websocket.Conn) {
 		err := conn.ReadJSON(&message)
 
 		if err != nil {
-			fmt.Println("Error Reading Message:", err)
+			// fmt.Println("Error Reading Message:", err)
 			break
 		}
-		fmt.Println("Recieved Message:", message)
+		// fmt.Println("Recieved Message:", message)
 
 		if message.Type == "new" {
 			s.handleNewGame(conn, message.GameID, message.Mode, message.WordSet)
@@ -208,8 +207,10 @@ func (s *Server) messageHandler(conn *websocket.Conn) {
 			s.handleStart(conn, message.GameID)
 		} else if message.Type == "guess" {
 			s.handleGuess(conn, message.GameID, message.Index, message.Team)
-		} else if message.Type == "end turn" {
+		} else if message.Type == "turn" {
 			s.handleEndTurn(conn, message.GameID, message.Round, message.Team)
+		} else if message.Type == "next" {
+			s.handleNextGame(conn, message.GameID)
 		}
 	}
 }
@@ -239,23 +240,23 @@ func (s *Server) handleNewGame(conn *websocket.Conn, gameID string, modeP *GameM
 	}
 
 	// lock because we don't want a race condition on checking if the game exists
-	fmt.Println("Aquiring lock (Server.socketNewGame)")
-	s.mu.Lock() // only one concurrent writer
-	fmt.Println("Lock Aquired (Server.socketNewGame)")
+	// fmt.Println("Aquiring lock (Server.socketNewGame)")
+	s.mu.Lock()
+	// fmt.Println("Lock Aquired (Server.socketNewGame)")
 	defer s.mu.Unlock()
-	defer fmt.Println("Releasing lock (Server.socketNewGame)")
+	// defer fmt.Println("Releasing lock (Server.socketNewGame)")
 
 	gh, ok := s.games[gameID]
 
 	if !ok {
 		// no game exists, create one
-		fmt.Println("Creating game, returning success")
+		// fmt.Println("Creating game, returning success")
 		gh = newHandle(newGame(gameID, randomState(words), mode), s.Store)
 		s.games[gameID] = gh
 
 		conn.WriteMessage(websocket.TextMessage, []byte("success"))
 	} else {
-		fmt.Println("Game already exists!")
+		// fmt.Println("Game already exists!")
 		conn.WriteMessage(websocket.TextMessage,
 			[]byte("Game already exists - please use a different code or join the game"))
 	}
@@ -266,10 +267,10 @@ func (s *Server) handleFindGame(conn *websocket.Conn, gameID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	_, ok := s.games[gameID]
+	gh, ok := s.games[gameID]
 
 	if ok {
-		conn.WriteMessage(websocket.TextMessage, []byte("success"))
+		conn.WriteMessage(websocket.TextMessage, []byte(gh.g.Mode.String()))
 	} else {
 		conn.WriteMessage(websocket.TextMessage, []byte("Game does not exist!"))
 	}
@@ -284,11 +285,11 @@ func (s *Server) handleStart(conn *websocket.Conn, gameID string) {
 	}
 	socketWriteGame(conn, gh)
 	// put this connection in the gamehandle so it will listen for new stuff
-	fmt.Println("Locking GH")
+	// fmt.Println("Locking GH")
 	gh.mu.Lock()
 	gh.connections = append(gh.connections, conn)
 	gh.mu.Unlock()
-	fmt.Println("Unlocking GH")
+	// fmt.Println("Unlocking GH")
 }
 
 func (s *Server) handleGuess(conn *websocket.Conn, gameID string, indexP *int, teamP *string) {
@@ -340,13 +341,42 @@ func (s *Server) handleEndTurn(conn *websocket.Conn, gameID string, roundP *int,
 	})
 }
 
-func socketWriteGame(conn *websocket.Conn, gh *GameHandle) bool {
-	fmt.Printf("Writing game %s to connection %s\n", gh.g.ID, conn.RemoteAddr())
-	a, er := json.Marshal(*gh.g)
-	if er != nil {
-		fmt.Println("error:", er)
+func (s *Server) handleNextGame(conn *websocket.Conn, gameID string) {
+
+	fmt.Println("Recieved Request: /next-game", gameID)
+
+	// lock because we don't want a race condition on checking if the game exists
+	// fmt.Println("Aquiring lock (Server.socketNewGame)")
+	s.mu.Lock()
+	// fmt.Println("Lock Aquired (Server.socketNewGame)")
+	defer s.mu.Unlock()
+	// defer fmt.Println("Releasing lock (Server.socketNewGame)")
+
+	gh, ok := s.games[gameID]
+
+	if ok {
+		// only create a new game if the previous one is over (has a winning team,
+		// therefore WinningTeam != nil), becuase multiple people will hit this
+		// endpoint and we only want to actually create a new game once
+		if gh.g.WinningTeam == nil {
+			conn.WriteMessage(websocket.TextMessage, []byte(gh.g.Mode.String()))
+			return
+		} else {
+			// game found, create a new one
+			gh = newHandle(newGame(gameID, nextGameState(gh.g.state), gh.g.Mode), s.Store)
+			s.games[gameID] = gh
+
+			conn.WriteMessage(websocket.TextMessage, []byte(gh.g.Mode.String()))
+		}
+	} else {
+		// fmt.Println("Game already exists!")
+		conn.WriteMessage(websocket.TextMessage,
+			[]byte("Game does not exist - please create a new game"))
 	}
-	os.Stdout.Write(a)
+}
+
+func socketWriteGame(conn *websocket.Conn, gh *GameHandle) bool {
+	// fmt.Printf("Writing game %s to connection %s\n", gh.g.ID, conn.RemoteAddr())
 	err := conn.WriteJSON(gh)
 	if err != nil {
 		fmt.Println("Error:", err)

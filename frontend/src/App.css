@@ -28,43 +28,49 @@
 }
 
 .red {
-  color : #d13030;
-  --team :  #d13030;
+  color : #fa5a5a;
+  --team :  #fa5a5a;
+  --teamText : black;
 }
 
 .blue {
-  color : #4183cc;
-  --team :  #4183cc;
+  color : #62a4ee;
+  --team :  #62a4ee;
+  --teamText : black;
 }
 
 .neutral {
-  color : lightyellow;
-  --team :  lightyellow;
+  color : rgb(238, 191, 73);
+  --team :  rgb(238, 191, 73);
+  --teamText : black;
 }
 
 .black {
   color : #404040;
   --team :  #404040;
+  --teamText : white;
 }
 
 .green {
-  color : mediumseagreen;
-  --team :  mediumseagreen;
+  color : rgb(83, 199, 135);
+  --team :  rgb(83, 199, 135);
+  --teamText : black;
+}
+
+.hidden {
+  color : lightgray;
+  --team : lightgray;
+  --teamText : black;
 }
 
 .neutral-linear-gradient {
   background: repeating-linear-gradient(
     45deg,
     var(--team),
-    var(--team) 10px,
-    lightyellow 10px,
-    lightyellow 20px
+    var(--team) 32px,
+    rgb(238, 191, 73) 32px,
+    rgb(238, 191, 73) 64px
   );
-}
-
-.hidden {
-  color : lightgray;
-  --team : lightgray;
 }
 
 .tiny-text {
@@ -98,6 +104,7 @@
   font-size : 18px;
   border: none;
   color: black;
+  background: var(--team);
   padding: 20px;
   margin: 20px;
 }
@@ -153,7 +160,7 @@
   height: 18%;
   font-size : 16px;
   border: none;
-  color : black;
+  color : var(--teamText);
   background-color: var(--team);
 }
 

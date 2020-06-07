@@ -32,8 +32,19 @@ function DuetCell(props) {
   );
 }
 
+function DuetKeyCell(props) {
+  const color = props.duetNeutral ? props.role : props.revealed ? props.role : "hidden"
+  return (
+    <button className={"cell " + color}>
+      {props.word}
+    </button>
+  );
+}
+
 function Board(props) {
-  const CellType = (props.role === "codemaster") ? CodemasterCell : (props.mode === "duet") ? DuetCell : Cell;
+  const CellType = (props.mode === "duet") 
+    ? ((props.role === "codemaster") ? DuetKeyCell : DuetCell)
+    : ((props.role === "codemaster") ? CodemasterCell : Cell);
   const [errorMessage, setErrorMessage] = useState("");
   const otherTeam = props.team === "blue" ? "red" : "blue"
 

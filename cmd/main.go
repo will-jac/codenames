@@ -13,6 +13,7 @@ import (
 )
 
 const listenAddr = ":9090"
+const expiryDur = -24 * time.Hour
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
@@ -38,6 +39,13 @@ func main() {
 
 	ps := &codenames.PebbleStore{DB: db}
 
+	err = ps.DeleteExpired(time.Now().Add(expiryDur))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "PebbleStore.DeletedExpired: %s\n", err)
+		os.Exit(1)
+	}
+	go deleteExpiredPeriodically(ps)
+
 	// Restore games from disk.
 	games, err := ps.Restore()
 	if err != nil {
@@ -56,5 +64,14 @@ func main() {
 
 	if err := server.Start(games); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s\n", err)
+	}
+}
+
+func deleteExpiredPeriodically(ps *codenames.PebbleStore) {
+	for range time.Tick(time.Hour) {
+		err := ps.DeleteExpired(time.Now().Add(expiryDur))
+		if err != nil {
+			log.Printf("PebbleStore.DeletedExpired: %s\n", err)
+		}
 	}
 }

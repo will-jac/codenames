@@ -1,7 +1,8 @@
-import React from 'react';
+import React, {useState } from 'react';
 import '../App.css';
 import Board from './board';
 import {DuetGameHeader, RegularGameHeader} from './gameheader.js'
+import { useHistory } from 'react-router-dom';
 
 const socket = new WebSocket("ws://localhost:9090/game")
 
@@ -20,7 +21,7 @@ function findGame(gameID, callback) {
   console.log(json)
   socket.send(json)
   socket.onmessage = (message) => { 
-    // expect a string: success or error message
+    // expect a string: mode or error message
     callback(message.data);
   };
 }
@@ -36,10 +37,12 @@ function startGame(gameID, callback) {
       var game = JSON.parse(message.data);
       callback(game);
     } catch (e) {
+      callback(game);
       console.log(e);
     }
   };
 }
+
 
 function guess(gameID, index, team) {
   console.log('Guessing:', index);
@@ -48,19 +51,50 @@ function guess(gameID, index, team) {
 
 function endTurn(gameID, round, team) {
   console.log('Ending Turn');
-  socket.send(JSON.stringify({"type":"end turn", gameID, round, team}));
+  socket.send(JSON.stringify({"type":"turn", gameID, round, team}));
+}
+
+function nextGame(gameID, callback) {
+  socket.send(JSON.stringify({"type":"next", gameID}));
+  socket.onmessage = (message) => {
+    // expect a string: mode or error message
+    callback(message.data);
+  }
 }
 
 function Game(props) {
 
-  // in theory, this component shouldn't reload, so this should only happen once
-  // subscribeToGame(props.gameID, props.loadGame);
-
   const GameHeader = (props.mode === "regular") ? RegularGameHeader : DuetGameHeader;  
+  const [errorMessage, setErrorMessage] = useState(null);
+  const history = useHistory();
+
+  console.log("game", props.words, props.layout)
+  
+  if (props.words === null) {
+    history.push("/")
+  }
+
+  const winners = (props.winningTeam) 
+    ? <div className="game-message">
+        <p>The <span className={props.winningTeam}>{props.winningTeam}</span> team won!</p> 
+        <button className="green cell" 
+          onClick={() => {
+            nextGame(props.gameID, (msg) => {
+              if (msg === "regular" || msg === "duet")
+                props.history.push("/lobby"); // mode shouldn't change mid-game (TODO: fix)
+              else
+                setErrorMessage(msg);
+            })  
+          }}
+        >Play Again</button>
+      </div>
+    : null
 
   return (
     <div className="game-view">
-      <p>You are on the <span className={props.team}>{props.team}</span> team!</p>
+      {errorMessage}
+      {winners}
+      <p>You are on the <span className={props.team}>{props.team}</span> team</p>
       <GameHeader      
         round={props.round}
         team={props.team}
@@ -75,13 +109,14 @@ function Game(props) {
       <Board 
         mode={props.mode}
         team={props.team}
-        enabled={props.turn === props.team}
+        enabled={winners === null && props.turn === props.team}
         words={props.words}
         layout={props.layout}
         revealed={props.revealed}
         role={props.role}
         guess={(index) => guess(props.gameID, index, props.team)}
       />
+      <p>Join this game: {props.gameID}</p>
     </div>
   );
 }

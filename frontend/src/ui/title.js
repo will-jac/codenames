@@ -4,6 +4,7 @@ import '../App.css';
 import {findGame, newGame} from './game';
 
 function Title(props) {
+
   return (
     <div className="small-text lobby-view">
       <p>
@@ -13,12 +14,16 @@ function Title(props) {
         full rules here. (TODO: link to rules)
         </p>
       <Link to="create">
-        <button className="game-button" style={{ background: "lightblue" }}>
+        <button className="blue game-button" 
+          // style={{ background: "lightblue" }}
+        >
           Create a New Game
         </button>
       </Link>
       <Link to="join">
-        <button className="game-button" style={{ background: "lightgreen" }}>
+        <button className="green game-button" 
+          // style={{ background: "lightgreen" }}
+        >
           Join an Existing Game
         </button>
       </Link>
@@ -41,15 +46,15 @@ function Join(props) {
                 value={props.gameID} onChange={(e) => props.setGameID(e.target.value)}
               />
               {/* TODO: change to a succ / fail check with server */}
-              <button className="game-button"
-                style={{ background: "lightgreen" }}
+              <button className="green game-button"
                 //TODO: set up some validation
                 onClick={(e) => {
                   findGame(props.gameID,
                     (msg) => {
-                      if (msg === "success")
-                        history.push("/lobby")
-                      else
+                      if (msg === "regular" || msg === "duet") {
+                        props.setMode(msg);
+                        history.push("/lobby");
+                      } else
                         setErrorMessage(msg)
                     })
                 }}
@@ -79,14 +84,14 @@ function Create(props) {
               What style of game do you want to play?
         </td>
             <td>
-              <button className="game-button"
-                style={props.gameMode === "regular" ? { background: "lightcoral" } : {}}
+              <button className={props.gameMode === "regular" ? "red game-button" : "hidden game-button"}
+                // style={props.gameMode === "regular" ? { background: "lightcoral" } : {}}
                 onClick={(e) => props.setGameMode("regular")}
               >
                 Regular
           </button>
-              <button className="game-button"
-                style={props.gameMode === "duet" ? { background: "lightgreen" } : {}}
+              <button className={props.gameMode === "duet" ? "green game-button" : "hidden game-button"}
+                // style={props.gameMode === "duet" ? { background: "lightgreen" } : {}}
                 onClick={(e) => props.setGameMode("duet")}
               >
                 Duet
@@ -109,9 +114,9 @@ function Create(props) {
         onClick={(e) => {
           newGame(props.gameID, props.gameMode, props.wordSet,
             (message) => {
-              if (message === "success")
+              if (message === "success") {
                 history.push("/lobby");
-              else
+              } else
                 setErrorMessage(message);
             });
         }}

@@ -6,20 +6,29 @@ import '../App.css';
 function Lobby(props) {
   const history = useHistory();
 
+  // console.log("lobby:", history.location.state)
+
+  if (!props.loaded && props.history && props.history.location && props.history.location.state) {
+    console.log("lobby load from state")
+    props.loadFromState()
+  }
+
+  // var team = props.team
+
   var setSpyMaster = null;
-  if (props.gameMode === "regular") {
+  if (props.mode === "regular") {
     setSpyMaster =
       <tr>
         <td>Choose a Role:</td>
         <td>
           <button
-            className={props.role === "player" ? "game-button " + props.team + " end-turn" : "game-button"}
+            className={props.role === "player" ? props.team + " game-button end-turn" : "hidden game-button"}
             onClick={(e) => props.setRole("player")}
           >
             Guesser
                 </button>
           <button
-            className={props.role === "codemaster" ? "game-button " + props.team + " end-turn" : "game-button"}
+            className={props.role === "codemaster" ? props.team + " game-button end-turn" : "hidden game-button"}
             onClick={(e) => props.setRole("codemaster")}
           >
             Code Master
@@ -47,13 +56,13 @@ function Lobby(props) {
             <td>Choose a Team:</td>
             <td>
               <button
-                className={props.team === "blue" ? "game-button blue end-turn" : "game-button"}
+                className={props.team === "blue" ? "blue game-button end-turn" : "hidden game-button"}
                 onClick={(e) => props.setTeam("blue")}
               >
                 Blue Team
                 </button>
               <button
-                className={props.team === "red" ? "game-button red end-turn" : "game-button"}
+                className={props.team === "red" ? "red game-button end-turn" : "hidden game-button"}
                 onClick={(e) => props.setTeam("red")}
               >
                 Red Team
@@ -69,8 +78,17 @@ function Lobby(props) {
           style={{ background: "lightgreen" }}
           onClick={() => {
             startGame(props.gameID, (gameState) => {
-              props.loadGame(gameState);
-              history.push("/play");
+              props.loadGame(gameState, (game) => {
+                sessionStorage.setItem('game', JSON.stringify(game))
+                history.push("/play");
+              });
+              
+              // {
+              //   "gameID" : props.gameID,
+              //   "team" : props.team,
+              //   "role" : props.role,
+              //   "mode" : props.mode,
+              // }
             });
           }}
         >

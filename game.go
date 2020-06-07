@@ -41,69 +41,9 @@ func otherTeam(s string) string {
 func randTeam(randRnd *rand.Rand) string {
 	if randRnd.Intn(2) == 0 {
 		return "red"
-	} else {
-		return "blue"
 	}
+	return "blue"
 }
-
-/*
-// Other swaps red and blue teams but returns black and neutral without edit
-func (t Team) Other() Team {
-	if t == Red {
-		return Blue
-	}
-	if t == Blue {
-		return Red
-	}
-	return t
-}
-
-// UnmarshalJSON takes a JSON and turns it into a team object
-func (t *Team) UnmarshalJSON(b []byte) error {
-	var s string
-	err := json.Unmarshal(b, &s)
-	if err != nil {
-		return err
-	}
-
-	switch s {
-	case "red":
-		*t = Red
-	case "blue":
-		*t = Blue
-	case "black":
-		*t = Black
-	case "green":
-		*t = Green
-	case "hidden":
-		*t = Hidden
-	default:
-		*t = Neutral
-	}
-	return nil
-}
-
-// MarshalJSON takes a team object and turns it into a JSON object
-func (t Team) MarshalJSON() ([]byte, error) {
-	// return json.Marshal(string(t)) // doesn't work....
-	var s string
-	switch t {
-	case Red:
-		s = "red"
-	case Blue:
-		s = "blue"
-	case Black:
-		s = "black"
-	case Green:
-		s = "green"
-	case Hidden:
-		s = "hidden"
-	default:
-		s = "neutral"
-	}
-	return json.Marshal(s)
-}
-*/
 
 // GameMode represents if this is a regular or duet game
 type GameMode int
@@ -174,7 +114,7 @@ type Game struct {
 	RoundStartedAt time.Time                       `json:"round_started_at,omitempty"`
 	Mode           GameMode                        `json:"mode"`
 	Turn           string                          `json:"turn"`
-	Layout         map[string][wordsPerGame]string `json:"layout,omitempty"`
+	Layout         map[string][wordsPerGame]string `json:"layout"`
 	Revealed       [wordsPerGame]string            `json:"revealed"`
 	Round          int                             `json:"round"`
 }
@@ -332,7 +272,6 @@ func (g *Game) checkWinningCondition() {
 // Guess is a function to facilitate the guess of a single word, at the specified index
 // returns nil if index is valid ([0, 24]) and not already guessed
 func (g *Game) Guess(index int, team string) error {
-	fmt.Println("Game.Guess:", index, wordsPerGame, team)
 	if team != g.Turn {
 		fmt.Println(g.Turn, team)
 		return errors.New("It's not your turn")
@@ -344,30 +283,30 @@ func (g *Game) Guess(index int, team string) error {
 		return errors.New("Revealed has wrong length")
 	}
 	if g.WinningTeam != nil {
-		return fmt.Errorf("The game is over! The %s team won\n",
-			g.WinningTeam)
+		return fmt.Errorf("Game over - the %s team won", *g.WinningTeam)
 	}
 
-	fmt.Printf("Guessing word %d in game %s\n", index, g.ID)
+	// fmt.Printf("Guessing word %d in game %s\n", index, g.ID)
 
 	g.UpdatedAt = time.Now()
 
-	if g.Revealed[index] != Hidden {
-		return errors.New("Cell has already been revealed")
-	}
-
 	if g.Mode == Duet {
-		if g.Layout[team][index] != Neutral {
-			g.Revealed[index] = g.Layout[team][index]
-		} else {
-			fmt.Println("Guess Neutral")
+		if g.Revealed[index] != Hidden && g.Revealed[index] != otherTeam(team) {
+			return errors.New("Cell has already been revealed")
+		}
+		if g.Layout[team][index] == Neutral {
 			g.Revealed[index] = team
+		} else {
+			g.Revealed[index] = g.Layout[team][index]
 		}
 		if g.Layout[team][index] != Green {
 			g.nextTurn()
 		}
 	} else {
 		// Regular
+		if g.Revealed[index] != Hidden {
+			return errors.New("Cell has already been revealed")
+		}
 		g.Revealed[index] = g.Layout[team][index]
 		g.checkWinningCondition()
 		if g.Layout[team][index] != g.Turn {
@@ -377,7 +316,8 @@ func (g *Game) Guess(index int, team string) error {
 
 	if g.Layout[team][index] == Black {
 		// Game Over
-		winners := otherTeam(g.Turn)
+		// fmt.Println("%s guessed the black word, %s won", team, g.Turn)
+		winners := g.Turn // next turn has already been called
 		g.WinningTeam = &winners
 	}
 
@@ -400,14 +340,10 @@ func (g *Game) NextTurn(currentTurn int, team string) bool {
 		fmt.Println("wrong team tried to end turn")
 		return false
 	}
-	// TODO: remove currentTurn != 0 once we can be sure all
-	// clients are running up-to-date versions of the frontend.
 	if g.Round != currentTurn {
 		return false
 	}
-	// g.UpdatedAt = time.Now()
 	g.Round++
 	g.Turn = otherTeam(g.Turn)
-	// g.RoundStartedAt = time.Now()
 	return true
 }
