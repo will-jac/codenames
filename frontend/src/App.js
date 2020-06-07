@@ -14,8 +14,6 @@ import Game from './ui/game';
 import * as word_data from './words.json';
 const wordData = word_data.default;
 
-const wordsPerGame = 25;
-
 function App() {
   const [wordSetName] = useState("English (Original)");
 

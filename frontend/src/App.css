@@ -109,9 +109,25 @@
 
 .game-header {
   justify-content: space-between;
-  margin : 0 1em;
-  display : flex;
-  font-size: 18px;
+  /* margin : 0 1em; */
+  font-size : 18px;
+  text-align : justify;
+  width : 100%;
+}
+
+.left-header {
+  width: 100px;
+  text-align : left;
+}
+
+.center-header {
+  width: 600px;
+  text-align : center;
+}
+
+.right-header {
+  width: 100px;
+  text-align : right;
 }
 
 .end-turn {

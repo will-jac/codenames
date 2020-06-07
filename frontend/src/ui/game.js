@@ -60,6 +60,7 @@ function Game(props) {
 
   return (
     <div className="game-view">
+      <p>You are on the <span className={props.team}>{props.team}</span> team!</p>
       <GameHeader      
         round={props.round}
         team={props.team}
